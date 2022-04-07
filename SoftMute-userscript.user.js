@@ -2,8 +2,7 @@
 // @name        Soft Mute
 // @namespace   Violentmonkey Scripts
 // @match       *://twitter.com/*
-// @grant       none
-// @version     1.0
+// @version     1.0.1
 // @author      Assistant
 // @description Allows you to soft mute users to avoid seeing their content on your home, but still allows them to interact with you.
 // @homepageURL https://github.com/Assistant/SoftMute
@@ -51,7 +50,6 @@ const addMenu = () => {
   const textArea = document.createElement('textarea')
   const close = document.createElement('div')
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g')
   
   const arrayToList = (array) => array.join('\n')
   const listToArray = (list) => list.split('\n')
@@ -153,6 +151,7 @@ const addMenu = () => {
   textArea.style.padding = '1rem'
   textArea.style.border = '0'
   textArea.style.color = themeMap[darkMode]['textColor']
+  textArea.style.resize = 'none'
   textArea.style.fontFamily = '"Segoe UI", Meiryo, system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
   textArea.setAttribute('spellcheck', 'false')
 
@@ -174,7 +173,7 @@ const themeMap = [
     'textColor': 'rgb(15, 20, 25)',
     'svgColor': 'rgb(15, 20, 25)',
     'iconHover': 'rgba(15, 20, 25, 0.1)',
-    'boxShadow': 'rgb(101 119 134 / 20%) 0px 0px 15px, rgb(101 119 134 / 15%) 0px 0px 3px 1px',
+    'boxShadow': 'rgba(101, 119, 134, 0.2) 0px 0px 15px, rgba(101, 119, 134, 0.15) 0px 0px 3px 1px',
     'background': 'rgb(255,255,255)',
     'border': '1px solid rgb(239, 243, 244)'
   },
@@ -182,7 +181,7 @@ const themeMap = [
     'textColor': 'rgb(247, 249, 249)',
     'svgColor': 'rgb(247, 249, 249)',
     'iconHover': 'rgba(247, 249, 249, 0.1)',
-    'boxShadow': 'rgb(136 153 166 / 20%) 0px 0px 15px, rgb(136 153 166 / 15%) 0px 0px 3px 1px',
+    'boxShadow': 'rgba(136, 153, 166, 0.2) 0px 0px 15px, rgba(136, 153, 166, 0.15) 0px 0px 3px 1px',
     'background': 'rgb(21, 32, 43)',
     'border': '1px solid rgb(56, 68, 77)'
   },
