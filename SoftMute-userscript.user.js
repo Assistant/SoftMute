@@ -1,0 +1,197 @@
+// ==UserScript==
+// @name        Soft Mute
+// @namespace   Violentmonkey Scripts
+// @match       *://twitter.com/*
+// @grant       none
+// @version     1.0
+// @author      Assistant
+// @description Allows you to soft mute users to avoid seeing their content on your home, but still allows them to interact with you.
+// @homepageURL https://github.com/Assistant/SoftMute
+// @updateURL   https://raw.githubusercontent.com/Assistant/SoftMute/master/SoftMute-userscript.user.js
+// @require     https://cdn.jsdelivr.net/npm/@violentmonkey/dom@1
+// @grant       GM_setValue
+// @grant       GM_getValue
+// ==/UserScript==
+
+const isUser = (link) => /^\/[^/]+$/.test(link)
+const overlaps = (arr1, arr2) => arr1.filter((elem) => arr2.indexOf(elem) !== -1).length > 0
+const getPeople = (post) => Array.from(post.getElementsByTagName('a')).map(elem => elem.getAttribute('href')).filter(isUser)
+const getCookieValue = name => document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)')?.pop() || ''
+const darkMode = getCookieValue('night_mode')
+let menuAdded = false
+
+VM.observe(document.body, () => {
+  if (!menuAdded) {
+    addMenu()
+    menuAdded = true
+  }
+  if ('/home' === location.pathname) {
+    run()
+  }
+})
+
+const run = () => {
+  let muted = GM_getValue('muted', []).map(user => '/'+user)
+  const posts = Array.from(document.getElementsByTagName('article'))
+  posts.forEach(post => {
+    const users = getPeople(post)
+    const overlap = overlaps(muted, users)
+    if (overlap) {
+      post.parentElement.parentElement.parentElement.style.display = 'none'
+    }
+  })
+}
+
+const addMenu = () => {
+  const nav = document.getElementsByTagName('nav')[0]
+  const menu = document.createElement('div')
+  const inputMenu = document.createElement('div')
+  const menuHeaderContainer = document.createElement('div')
+  const menuHeader = document.createElement('div')
+  const textArea = document.createElement('textarea')
+  const close = document.createElement('div')
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  
+  const arrayToList = (array) => array.join('\n')
+  const listToArray = (list) => list.split('\n')
+  const saveList = function() {
+    GM_setValue('muted', listToArray(textArea.value))
+    run()
+  }
+  
+  menu.onmouseover = function() {
+    this.style.backgroundColor = themeMap[darkMode]['iconHover']
+  }
+  menu.onmouseout = function() {
+    this.style.backgroundColor = ''
+  }
+  menu.onclick = function() {
+    if (inputMenu.style.display === 'none') {
+      inputMenu.style.top = 'calc(50% - 16rem)'
+      inputMenu.style.display = 'block'
+    } else {
+      inputMenu.style.display = 'none'
+      saveList()
+    }
+  }
+  
+  close.onclick = function() {
+    inputMenu.style.display = 'none'
+    saveList()
+  }
+  
+  menu.style.cursor = 'pointer'
+  menu.style.transitionProperty = 'background-color, box-shadow'
+  menu.style.transitionDuration = '0.2s'
+  menu.style.alignItems = 'center'
+  menu.style.justifyContent = 'center'
+  menu.style.flexDirection = 'row'
+  menu.style.maxWidth = '100%'
+  menu.style.padding = '12px'
+  menu.style.borderRadius = '9999px'
+  menu.style.border = '0 solid black'
+  menu.style.boxSizing = 'border-box'
+  menu.style.display = 'flex'
+  menu.style.flexBasis = 'auto'
+  menu.style.flexShrink = '0'
+  menu.style.margin = '0'
+  menu.style.maxWidth = '50.25px'
+  menu.style.minHeight = '0'
+  menu.style.minWidth = '0'
+  menu.style.position = 'relative'
+  menu.style.zIndex = '0'
+  
+  svg.style.color = themeMap[darkMode]['svgColor']
+  svg.style.height = '1.75rem'
+  svg.style.userSelect = 'none'
+  svg.style.verticalAlign = 'text-bottom'
+  svg.style.position = 'relative'
+  svg.style.maxWidth = '100%'
+  svg.style.fill = 'currentcolor'
+  svg.style.display = 'inline-block'
+  svg.setAttributeNS('http://www.w3.org/2000/svg', 'viewBox', '0 0 24 24')
+  svg.setAttributeNS('http://www.w3.org/2000/svg', 'preserveAspectRatio', 'xMaxYMax meet')
+  
+  svg.innerHTML = '<g><path d="M1.75 22.354c-.192 0-.384-.073-.53-.22-.293-.293-.293-.768 0-1.06L20.395 1.898c.293-.294.768-.294 1.06 0s.294.767 0 1.06L2.28 22.135c-.146.146-.338.22-.53.22zm1.716-5.577c-.134 0-.27-.036-.392-.11-.67-.413-1.07-1.13-1.07-1.917v-5.5c0-1.24 1.01-2.25 2.25-2.25H6.74l7.047-5.588c.225-.18.533-.215.792-.087.258.125.423.387.423.675v3.28c0 .415-.336.75-.75.75s-.75-.335-.75-.75V3.553L7.47 8.338c-.134.104-.298.162-.467.162h-2.75c-.413 0-.75.337-.75.75v5.5c0 .263.134.5.356.64.353.216.462.678.245 1.03-.14.23-.387.357-.64.357zm10.787 5.973c-.166 0-.33-.055-.466-.162l-4.795-3.803c-.325-.258-.38-.73-.122-1.054.258-.322.73-.38 1.054-.12l3.58 2.838v-7.013c0-.414.335-.75.75-.75s.75.336.75.75V22c0 .288-.166.55-.425.675-.104.05-.216.075-.327.075z"></path></g>'
+
+  inputMenu.style.display = 'none'
+  inputMenu.style.minWidth = '28rem'
+  inputMenu.style.height = '32rem'
+  inputMenu.style.overflow = 'hidden'
+  inputMenu.style.top = 'calc(50% - 16rem)'
+  inputMenu.style.left = 'calc(50% - 14rem)'
+  inputMenu.style.boxShadow = themeMap[darkMode]['boxShadow']
+  inputMenu.style.backgroundColor = themeMap[darkMode]['background']
+  inputMenu.style.top = '0'
+  inputMenu.style.position = 'fixed'
+  inputMenu.style.borderRadius = '4px'
+  
+  menuHeaderContainer.style.borderBottom = themeMap[darkMode]['border']
+  menuHeaderContainer.style.color = themeMap[darkMode]['textColor']
+  menuHeaderContainer.style.height = '3rem'
+  menuHeaderContainer.style.fontFamily = '"Segoe UI", Meiryo, system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
+
+  menuHeader.innerText = 'Mute list, one username per line'
+  menuHeader.style.textAlign = 'center'
+  menuHeader.style.lineHeight = '3rem'
+  
+  close.innerText = '×'
+  close.style.position = 'relative'
+  close.style.width = 'fit-content'
+  close.style.top = '-3rem'
+  close.style.color = themeMap[darkMode]['textColor']
+  close.style.left = '26rem'
+  close.style.cursor = 'pointer'
+  close.style.fontSize = '2.5rem'
+  
+  textArea.value = arrayToList(GM_getValue('muted', []))
+  textArea.style.width = 'calc(100% - 2rem)'
+  textArea.style.outline = 'none'
+  textArea.style.height = '27rem'
+  textArea.style.backgroundColor = 'transparent'
+  textArea.style.padding = '1rem'
+  textArea.style.border = '0'
+  textArea.style.color = themeMap[darkMode]['textColor']
+  textArea.style.fontFamily = '"Segoe UI", Meiryo, system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
+  textArea.setAttribute('spellcheck', 'false')
+
+  
+  menuHeaderContainer.appendChild(menuHeader)
+  menuHeaderContainer.appendChild(close)
+  
+  inputMenu.appendChild(menuHeaderContainer)
+  inputMenu.appendChild(textArea)
+  
+  menu.appendChild(svg)
+
+  nav.appendChild(menu)
+  nav.appendChild(inputMenu)
+}
+
+const themeMap = [
+  {
+    'textColor': 'rgb(15, 20, 25)',
+    'svgColor': 'rgb(15, 20, 25)',
+    'iconHover': 'rgba(15, 20, 25, 0.1)',
+    'boxShadow': 'rgb(101 119 134 / 20%) 0px 0px 15px, rgb(101 119 134 / 15%) 0px 0px 3px 1px',
+    'background': 'rgb(255,255,255)',
+    'border': '1px solid rgb(239, 243, 244)'
+  },
+  {
+    'textColor': 'rgb(247, 249, 249)',
+    'svgColor': 'rgb(247, 249, 249)',
+    'iconHover': 'rgba(247, 249, 249, 0.1)',
+    'boxShadow': 'rgb(136 153 166 / 20%) 0px 0px 15px, rgb(136 153 166 / 15%) 0px 0px 3px 1px',
+    'background': 'rgb(21, 32, 43)',
+    'border': '1px solid rgb(56, 68, 77)'
+  },
+  {
+    'textColor': 'rgb(231, 233, 234)',
+    'svgColor': 'rgb(231, 233, 234)',
+    'iconHover': 'rgba(231, 233, 234, 0.1)',
+    'boxShadow': 'rgba(255, 255, 255, 0.2) 0px 0px 15px, rgba(255, 255, 255, 0.15) 0px 0px 3px 1px',
+    'background': 'rgb(0, 0, 0)',
+    'border': '1px solid rgb(47, 51, 54)'
+  }
+]
