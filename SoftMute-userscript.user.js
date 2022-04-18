@@ -2,7 +2,7 @@
 // @name        Soft Mute
 // @namespace   Violentmonkey Scripts
 // @match       *://twitter.com/*
-// @version     1.0.1
+// @version     1.1.0
 // @author      Assistant
 // @description Allows you to soft mute users to avoid seeing their content on your home, but still allows them to interact with you.
 // @homepageURL https://github.com/Assistant/SoftMute
@@ -10,13 +10,68 @@
 // @require     https://cdn.jsdelivr.net/npm/@violentmonkey/dom@1
 // @grant       GM_setValue
 // @grant       GM_getValue
+// @grant       GM_xmlhttpRequest
 // ==/UserScript==
 
-const isUser = (link) => /^\/[^/]+$/.test(link)
+const mapURL = GM_getValue('mapURL', 'https://sm.assistant.moe')
+/*
+ * mapURL is queried with each username on your mute list 
+ * in order to get the user ID of the user.
+ * This allows the script to block posts that do not directly contain the user
+ * but appear on your home because of that user (e.g., User liked, User follows, etc)
+ * as the links on those posts to the user being muted appear in the format
+ * twitter.com/i/user/<user ID> instead of twitter.com/<username>.
+ * Note: setti
+ *
+ * These queries are not stored in my server, however if you have a healthy distrust
+ * you can change the `mapURL` variable in your userscript manager to the URL 
+ * of a different endpoint that performs the same action, or an empty string 
+ * to disable this feature entirely.
+ * (or change it in the code above, but that will be overwritten on updates)
+ * 
+ * The endpoint should take in a POST request with a urlencoded form of the follwing
+ * shape: `input=<username>`, and respond with a string only containing the
+ * corresponding user ID, without a trailing newline.
+ * 
+ * You can see my implementation at https://github.com/Assistant/TwitterUsername2ID
+ * While I do not recommend that you use it because I have no idea who runs it,
+ * https://tweeterid.com/ajax.php is an example endpoint that implements the feature
+ * correctly. But again, that is run by an unknown 3rd-party, if you have privacy
+ * concerns you should really host your own endpoint, feel free to use my code.
+ */
+
 const overlaps = (arr1, arr2) => arr1.filter((elem) => arr2.indexOf(elem) !== -1).length > 0
-const getPeople = (post) => Array.from(post.getElementsByTagName('a')).map(elem => elem.getAttribute('href')).filter(isUser)
+const reducer = (accumulator, current) => {
+  const url = current.getAttribute('href')
+  if (/^\/[^/]+$/.test(url)) {
+    accumulator.push(url)
+    return accumulator
+  }
+  if (/^\/i\/user\/[0-9]+$/.test(url)) accumulator.push(url.replace(/^[\/iuser]+/, ''))
+  return accumulator
+}
+const getPeople = (post) => Array.from(post.getElementsByTagName('a')).reduce(reducer, [])
 const getCookieValue = name => document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)')?.pop() || ''
 const darkMode = getCookieValue('night_mode')
+const ids = {}
+const getID = async (name) => {
+  if(ids.hasOwnProperty(name)) return
+  GM_xmlhttpRequest({
+    url: mapURL,
+    method: 'post',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    anonymous: true,
+    data: `input=${name}`,
+    onload: (response) => {
+      const id = response.responseText
+      if(!ids.hasOwnProperty(name)) {
+        ids[name] = id
+        run()
+      }
+    }
+  })
+}
+GM_getValue('muted', []).forEach(getID)
 let menuAdded = false
 
 VM.observe(document.body, () => {
@@ -30,11 +85,12 @@ VM.observe(document.body, () => {
 })
 
 const run = () => {
-  let muted = GM_getValue('muted', []).map(user => '/'+user)
+  const muted = GM_getValue('muted', []).map(user => '/'+user)
+  const mutedIDs = Object.values(ids)
   const posts = Array.from(document.getElementsByTagName('article'))
   posts.forEach(post => {
     const users = getPeople(post)
-    const overlap = overlaps(muted, users)
+    const overlap = overlaps([...muted, ...mutedIDs], users)
     if (overlap) {
       post.parentElement.parentElement.parentElement.style.display = 'none'
     }
@@ -54,7 +110,9 @@ const addMenu = () => {
   const arrayToList = (array) => array.join('\n')
   const listToArray = (list) => list.split('\n')
   const saveList = function() {
-    GM_setValue('muted', listToArray(textArea.value))
+    const names = listToArray(textArea.value)
+    names.forEach(getID)
+    GM_setValue('muted', names)
     run()
   }
   
